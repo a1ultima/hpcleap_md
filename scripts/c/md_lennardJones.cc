@@ -59,20 +59,6 @@ void force();
 
 FILE *file;
 
-// double get_distance2(int i, int j) //squared distance
-// {
-//  double xmin, ymin, zmin, diff, r2;
-//       diff = x[i] - x[j];
-//       xmin = (diff - L*round(diff/L));
-//       diff = y[i] - y[j];
-//       ymin = (diff - L*round(diff/L));
-//       diff = z[i] - z[j];
-//       zmin = (diff - L*round(diff/L));
-
-//  r2 = xmin*xmin + ymin*ymin + zmin*zmin;
-
-//  return r2;
-// }
 
 void init() //initialisation
 {
@@ -131,20 +117,6 @@ void init() //initialisation
   }
 }
 
-// int overlap(int i) //overlap function
-// {
-//   double r2;
-  
-//   for(int j = 0; j < N; j++){
-//     r2 = get_distance2(i,j);
-  
-//     if(i != j && r2 == 0.){
-//       return 1; //overlap
-//     }
-//   }
-  
-//   return 0;
-// }
 
 void force() //total force
 { 
@@ -218,7 +190,12 @@ int main(int argc, char *argv[])
   clock_t begin, end;
   begin = clock();
 
-  srand48(time(0));  // seed for random initial particle velocities
+  // @test:@0011:using 1 as seed for testing for runtime    @todo: make the srand48 truely random later by using time(0) as the seed
+  // srand48(time(0));  // seed for random initial particle velocities
+
+  // @test:@0011: ^
+  srand48(1);  // seed for random initial particle velocities
+
 
   printf("Initiating particle's coordinates and velocities...\n");
   
