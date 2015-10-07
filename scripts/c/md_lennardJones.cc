@@ -48,6 +48,7 @@ double zi[N];
 double T; //reduced temperature
 double D; //diffusion constant
 
+
 //functions
 
 void init();
@@ -119,7 +120,7 @@ void init() //initialisation
     vz[i] -= vzcm;
   }
 
-  printf("%f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
+  printf("\t %f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
  
 /* */ 
   for(int i = 0; i < N; i++){ //initial positions
@@ -167,9 +168,13 @@ void force() //total force
       r2 = xmin*xmin + ymin*ymin + zmin*zmin;
       
       if(r2 < rcut*rcut){
-        r6 = r2*r2*r2;
-        r12 = r6*r6;
-        f = (48./(r12*r2) - 24./(r6*r2)); //LJ-potential
+        // @test:@0005: trying to use pow() instead of the below three lines of code (commented)
+        // r6 = r2*r2*r2;
+        // r12 = r6*r6;
+        // f = (48./(r12*r2) - 24./(r6*r2)); //LJ-potential
+        // @test:@0005: testing below 3 lines instead of above  
+        f = (48./(pow(r2,7)) - 24./(pow(r2,4))); //LJ-potential
+
         fx[i] += f*xmin;
         fy[i] += f*ymin;
         fz[i] += f*zmin;
@@ -215,18 +220,19 @@ int main(int argc, char *argv[])
 
   srand48(time(0));  // seed for random initial particle velocities
 
-  printf("Initiating particle's coordinates and velocities...")
+  printf("Initiating particle's coordinates and velocities...\n");
+  
   init();            // initialize 
 
   // @todo: uncomment to save data to file... 
   // file = fopen("temperature_50.dat","w"); 
 
-  printf("Simulating dynamics...")
+  printf("Simulating particle's dynamics...\n");
 
   for(int k = 0; k < NSTEP; k++){
 
     if(k % 500 == 0){
-      printf("%f\n",((float)k/NSTEP)*100.0);  
+      printf("\t %f percent\n",(double)((float)k/NSTEP)*100.0);  
     }
     
     move();
@@ -244,7 +250,8 @@ int main(int argc, char *argv[])
     // }
   }
 
-  fclose(file);
+  // @todo: uncomment to save data to file...
+  // fclose(file);
 
   /* Calculate diffusion coefficient   @todo: make this it's own function */
 
