@@ -17,14 +17,14 @@
 #define dx 10 //lattice spacing
 #define Lx (L/dx) //renormalised length
 #define N (Lx*Lx*Lx) //total number of particles
-#define NSTEP 1000000 //total number of time steps
+#define NSTEP 10000 //total number of time steps
 
 using namespace std;
 
 //constants
 
 double const vmax     = 2.7; //T_LJ = 2.4
-double const dt       = 0.001;
+double const dt       = 0.01;
 double const rcut     = 3.0;
 double const rcut2    = rcut*rcut;
 double const halfdtdt = 0.5*dt*dt;
@@ -53,7 +53,7 @@ double D; //diffusion constant
 
 // file objects
 
-FILE *file_x, *file_y, *file_z, *file_vx, *file_vy, *file_vz, *file_fx, *file_fy, *file_fz;
+FILE *file_x, *file_y, *file_z, *file_vx, *file_vy, *file_vz, *file_fx, *file_fy, *file_fz, *file_T;
 
 
 //functions
@@ -110,7 +110,7 @@ void init() //initialisation
 
   printf("\t %f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
  
-/* */ 
+  /* */ 
   for(int i = 0; i < N; i++){ //initial positions
     xi[i] = x[i];
     yi[i] = y[i];
@@ -192,6 +192,17 @@ void move() //one time step move dt
   }
 }
 
+void temperature()
+{
+  int v2 = 0.;
+  for(int i = 0; i < N; i++){
+    v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
+  }
+  T = 1./3.*v2/N;
+}
+
+
+
 int main(int argc, char *argv[])
 {
   
@@ -241,21 +252,24 @@ int main(int argc, char *argv[])
   file_fx = fopen("../../data/fx.dat","w"); 
   file_fy = fopen("../../data/fy.dat","w"); 
   file_fz = fopen("../../data/fz.dat","w"); 
+  file_T  = fopen("../../data/T.dat","w"); 
 
-  fprintf(file_x,  "X(t) Coordinates\n");
-  fprintf(file_y,  "Y(t) Coordinates\n");
-  fprintf(file_z,  "Z(t) Coordinates\n");
-  fprintf(file_vx, "X(t) Velocities\n");
-  fprintf(file_vy, "Y(t) Velocities\n");
-  fprintf(file_vz, "Z(t) Velocities\n");
-  fprintf(file_fx, "X(t) Forces\n");
-  fprintf(file_fy, "Y(t) Forces\n");
-  fprintf(file_fz, "Z(t) Forces\n");
+  fprintf(file_x,  "#X(t) Coordinates\n#Time (t)\t");
+  fprintf(file_y,  "#Y(t) Coordinates\n#Time (t)\t");
+  fprintf(file_z,  "#Z(t) Coordinates\n#Time (t)\t");
+  fprintf(file_vx, "#X(t) Velocities\n#Time (t)\t");
+  fprintf(file_vy, "#Y(t) Velocities\n#Time (t)\t");
+  fprintf(file_vz, "#Z(t) Velocities\n#Time (t)\t");
+  fprintf(file_fx, "#X(t) Forces\n#Time (t)\t");
+  fprintf(file_fy, "#Y(t) Forces\n#Time (t)\t");
+  fprintf(file_fz, "#Z(t) Forces\n#Time (t)\t");
+
+  fprintf(file_T, "Temperature(t)\n");
 
   for (int i = 0; i < N; i++){
-    fprintf(file_x, "Molecule %i\t", i); 
-    fprintf(file_y, "Molecule %i\t", i);
-    fprintf(file_z, "Molecule %i\t", i);
+    fprintf(file_x,  "Molecule %i\t", i); 
+    fprintf(file_y,  "Molecule %i\t", i);
+    fprintf(file_z,  "Molecule %i\t", i);
     fprintf(file_vx, "Molecule %i\t", i);
     fprintf(file_vy, "Molecule %i\t", i);
     fprintf(file_vz, "Molecule %i\t", i);
@@ -264,9 +278,9 @@ int main(int argc, char *argv[])
     fprintf(file_fz, "Molecule %i\t", i);
   }
 
-  fprintf(file_x, "\n");
-  fprintf(file_y, "\n");
-  fprintf(file_z, "\n");
+  fprintf(file_x,  "\n");
+  fprintf(file_y,  "\n");
+  fprintf(file_z,  "\n");
   fprintf(file_vx, "\n");
   fprintf(file_vy, "\n");
   fprintf(file_vz, "\n");
@@ -286,10 +300,21 @@ int main(int argc, char *argv[])
     
     move();
 
+    
+    fprintf(file_x, "%f\t", k*dt);
+    fprintf(file_y, "%f\t", k*dt);
+    fprintf(file_z, "%f\t", k*dt);
+    fprintf(file_vx, "%f\t", k*dt);
+    fprintf(file_vy, "%f\t", k*dt);
+    fprintf(file_vz, "%f\t", k*dt);
+    fprintf(file_fx, "%f\t", k*dt);
+    fprintf(file_fy, "%f\t", k*dt);
+    fprintf(file_fz, "%f\t", k*dt);
+
     for (int i = 0; i < N; i++){
-      fprintf(file_x, "%f\t",  x[i]); 
-      fprintf(file_y, "%f\t",  y[i]);
-      fprintf(file_z, "%f\t",  z[i]);
+      fprintf(file_x,  "%f\t", x[i]); 
+      fprintf(file_y,  "%f\t", y[i]);
+      fprintf(file_z,  "%f\t", z[i]);
       fprintf(file_vx, "%f\t", vx[i]);
       fprintf(file_vy, "%f\t", vy[i]);
       fprintf(file_vz, "%f\t", vz[i]);
@@ -307,18 +332,16 @@ int main(int argc, char *argv[])
     fprintf(file_fy, "\n");
     fprintf(file_fz, "\n");
 
-    // @todo: uncomment up to "fprintf" to get temperature
-    // if(k % 500 == 0){
-    //   v2 = 0.;
-    //   for(int i = 0; i < N; i++){
-    //     v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
-    //   }
-      
-    //   T = 1./3.*v2/N;
-     
-    //   fprintf(file, "%f \t %f \n", k*dt, T);
-    // }
+    //@todo: uncomment up to "fprintf" to get temperature
+//    if(k % 500 == 0){
+      // Calculate Temperature 
+
+      temperature();
+
+      fprintf(file_T, "%f \t %f \n", k*dt, T);
+//    }
   }
+
 
   // @todo: uncomment to save data to file...
   // fclose(file);
@@ -331,6 +354,8 @@ int main(int argc, char *argv[])
   fclose(file_fx);
   fclose(file_fy);
   fclose(file_fz);
+
+  fclose(file_T);
 
   /* Calculate diffusion coefficient   @todo: make this it's own function */
 
