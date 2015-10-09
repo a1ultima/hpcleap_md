@@ -61,152 +61,16 @@ FILE *file_x, *file_y, *file_z, *file_vx, *file_vy, *file_vz, *file_fx, *file_fy
 void init();
 void move();
 void force();
-
-void init() //initialisation
-{
-
- /*Position initialisation*/
-
- int l;
-
- for(int i = 0; i < Lx; i++){
-    for(int j = 0; j < Lx; j++){
-      for(int k = 0; k < Lx; k++){
-        l = (i*Lx*Lx + j*Lx + k);
-        x[l] = i*dx;
-        y[l] = j*dx;
-        z[l] = k*dx;
-      }
-    }  
-  }
-
- /*Velocity initialisation*/
- 
- double vxcm, vycm, vzcm = 0.;
-
- for(int i = 0; i < N; i++){
-
-    vx[i] = vmax*(2.*drand48()-1.);
-    vy[i] = vmax*(2.*drand48()-1.);
-    vz[i] = vmax*(2.*drand48()-1.);
-
-    vxcm += vx[i]; // summing velocities (for subtracting center of mass V)
-    vycm += vy[i];
-    vzcm += vz[i];
-
-  }
-
- /*Subtract center of mass velocities*/
-
- vxcm /= N; // averaging velocities (for subtracting center of mass V)
- vycm /= N;
- vzcm /= N;
-
- for(int i = 0; i < N; i++){
-    vx[i] -= vxcm;
-    vy[i] -= vycm;
-    vz[i] -= vzcm;
-  }
-
-  printf("\t %f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
- 
-  /* */ 
-  for(int i = 0; i < N; i++){ //initial positions
-    xi[i] = x[i];
-    yi[i] = y[i];
-    zi[i] = z[i];
-   //printf("%d \t %f \t %f \t %f \n", i, x[i], y[i], z[i]);
-  }
-}
+void temperature();
+void diffusion_coefficient();
 
 
-void force() //total force
-{ 
-  double r2, xmin, ymin, zmin, diff, f;
-  
-  for(int i = 0; i<N; i++){
-    fx[i] = 0;
-    fy[i] = 0;
-    fz[i] = 0;
-  }
-  
-  for(int i = 0; i<N; i++){
-    for(int j = i+1; j<N; j++){
-      // @test:0034:replacing "diff" with the raw x[i]-x[i] calcs
-      // diff = x[i] - x[j];
-      // xmin = (diff - L*round(diff/L));
-      // diff = y[i] - y[j];
-      // ymin = (diff - L*round(diff/L));
-      // diff = z[i] - z[j];
-      // zmin = (diff - L*round(diff/L));
-      // @test:0034: ^
-      xmin = ((x[i]-x[j]) - L*round((x[i]-x[j])/L));
-      ymin = ((y[i]-y[j]) - L*round((y[i]-y[j])/L));
-      zmin = ((z[i]-z[j]) - L*round((z[i]-z[j])/L));
-
-      r2 = xmin*xmin + ymin*ymin + zmin*zmin;
-      
-      if(r2 < rcut2){
-        // @test:@0005: trying to use pow() instead of the below three lines of code (commented)
-        // r6 = r2*r2*r2;
-        // r12 = r6*r6;
-        // f = (48./(r12*r2) - 24./(r6*r2)); //LJ-potential
-        // @test:@0005: testing below 3 lines instead of above  
-        f = (48./(pow(r2,7)) - 24./(pow(r2,4))); //LJ-potential
-
-        fx[i] += f*xmin;
-        fy[i] += f*ymin;
-        fz[i] += f*zmin;
-        fx[j] -= f*xmin;
-        fy[j] -= f*ymin;
-        fz[j] -= f*zmin;
-      }
-    }
-  }
-}
-
-void move() //one time step move dt
-{ 
-  //force();        // fx, fy and fz stores forces for f(t)  // @test:0021:moving force out of the loop
-
-  // MOVE_R 
-  for(int i = 0; i < N; i++){
-    x[i] += dt*vx[i] + halfdtdt*fx[i]; //updated positions
-    y[i] += dt*vy[i] + halfdtdt*fy[i];
-    z[i] += dt*vz[i] + halfdtdt*fz[i];
-    
-    fx1[i] = fx[i]; // fx1 stores forces at f(t)
-    fy1[i] = fy[i]; // fy1 stores forces at f(t)
-    fz1[i] = fz[i]; // fz1 stores forces at f(t)
-  }
-
-  //fprintf(file, "%f \t %f \n", k*dt, T);  
-  
-  force();          // fx, fy and fz stores forces for f(t+1)
-  
-  // MOVE_V
-  for(int i = 0; i < N; i++){
-    vx[i] += halfdt*(fx1[i] + fx[i]); //updated velocities
-    vy[i] += halfdt*(fy1[i] + fy[i]);
-    vz[i] += halfdt*(fz1[i] + fz[i]);
-  }
-}
-
-void temperature()
-{
-  int v2 = 0.;
-  for(int i = 0; i < N; i++){
-    v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
-  }
-  T = 1./3.*v2/N;
-}
-
-
+// main program
 
 int main(int argc, char *argv[])
 {
   
-  double r2, v2, r20, rms, time_spent;
+  double v2, rms, time_spent;  // double r2, v2, r20, rms, time_spent;
 
 
   // Code timing:start
@@ -299,7 +163,6 @@ int main(int argc, char *argv[])
     }
     
     move();
-
     
     fprintf(file_x, "%f\t", k*dt);
     fprintf(file_y, "%f\t", k*dt);
@@ -358,8 +221,9 @@ int main(int argc, char *argv[])
   fclose(file_T);
 
   /* Calculate diffusion coefficient   @todo: make this it's own function */
+  // diffusion_coefficient(rms);
+  int r2, r20 = 0.;
 
-  r2, r20 = 0.;
   for(int i = 0; i < N; i++){
     r2  += x[i]*x[i]   + y[i]*y[i]   + z[i]*z[i];  
     r20 += xi[i]*xi[i] + yi[i]*yi[i] + zi[i]*zi[i];
@@ -367,7 +231,7 @@ int main(int argc, char *argv[])
   rms = (r2 - r20)/N;
   D = rms/(6.*NSTEP*dt);
 
-  printf("Temperature: T = %f \t r2 = %f \t rms = %f \t Diffusion: D =  %f \n", T, r20/N, sqrt(rms), D);
+  printf("Temperature: T = %f \t r2 = %i \t rms = %f \t Diffusion: D =  %f \n", T, r20/N, sqrt(rms), D);
 
   // Code timing:end
   end = clock();
@@ -378,3 +242,156 @@ int main(int argc, char *argv[])
   return 0;
 
 }
+
+
+
+void init() //initialisation
+{
+
+ /*Position initialisation*/
+
+ int l;
+
+ for(int i = 0; i < Lx; i++){
+    for(int j = 0; j < Lx; j++){
+      for(int k = 0; k < Lx; k++){
+        l = (i*Lx*Lx + j*Lx + k);
+        x[l] = i*dx;
+        y[l] = j*dx;
+        z[l] = k*dx;
+      }
+    }  
+  }
+
+ /*Velocity initialisation*/
+ 
+ double vxcm, vycm, vzcm = 0.;
+
+ for(int i = 0; i < N; i++){
+
+    vx[i] = vmax*(2.*drand48()-1.);
+    vy[i] = vmax*(2.*drand48()-1.);
+    vz[i] = vmax*(2.*drand48()-1.);
+
+    vxcm += vx[i]; // summing velocities (for subtracting center of mass V)
+    vycm += vy[i];
+    vzcm += vz[i];
+
+  }
+
+ /*Subtract center of mass velocities*/
+
+ vxcm /= N; // averaging velocities (for subtracting center of mass V)
+ vycm /= N;
+ vzcm /= N;
+
+ for(int i = 0; i < N; i++){
+    vx[i] -= vxcm;
+    vy[i] -= vycm;
+    vz[i] -= vzcm;
+  }
+
+  printf("\t %f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
+ 
+  /* */ 
+  for(int i = 0; i < N; i++){ //initial positions
+    xi[i] = x[i];
+    yi[i] = y[i];
+    zi[i] = z[i];
+   //printf("%d \t %f \t %f \t %f \n", i, x[i], y[i], z[i]);
+  }
+}
+
+void force() //total force
+{ 
+  double r2, xmin, ymin, zmin, diff, f;
+  
+  for(int i = 0; i<N; i++){
+    fx[i] = 0;
+    fy[i] = 0;
+    fz[i] = 0;
+  }
+  
+  for(int i = 0; i<N; i++){
+    for(int j = i+1; j<N; j++){
+      // @test:0034:replacing "diff" with the raw x[i]-x[i] calcs
+      // diff = x[i] - x[j];
+      // xmin = (diff - L*round(diff/L));
+      // diff = y[i] - y[j];
+      // ymin = (diff - L*round(diff/L));
+      // diff = z[i] - z[j];
+      // zmin = (diff - L*round(diff/L));
+      // @test:0034: ^
+      xmin = ((x[i]-x[j]) - L*round((x[i]-x[j])/L));
+      ymin = ((y[i]-y[j]) - L*round((y[i]-y[j])/L));
+      zmin = ((z[i]-z[j]) - L*round((z[i]-z[j])/L));
+
+      r2 = xmin*xmin + ymin*ymin + zmin*zmin;
+      
+      if(r2 < rcut2){
+        // @test:@0005: trying to use pow() instead of the below three lines of code (commented)
+        // r6 = r2*r2*r2;
+        // r12 = r6*r6;
+        // f = (48./(r12*r2) - 24./(r6*r2)); //LJ-potential
+        // @test:@0005: testing below 3 lines instead of above  
+        f = (48./(pow(r2,7)) - 24./(pow(r2,4))); //LJ-potential
+
+        fx[i] += f*xmin;
+        fy[i] += f*ymin;
+        fz[i] += f*zmin;
+        fx[j] -= f*xmin;
+        fy[j] -= f*ymin;
+        fz[j] -= f*zmin;
+      }
+    }
+  }
+}
+
+void move() //one time step move dt
+{ 
+  //force();        // fx, fy and fz stores forces for f(t)  // @test:0021:moving force out of the loop
+
+  // MOVE_R 
+  for(int i = 0; i < N; i++){
+    x[i] += dt*vx[i] + halfdtdt*fx[i]; //updated positions
+    y[i] += dt*vy[i] + halfdtdt*fy[i];
+    z[i] += dt*vz[i] + halfdtdt*fz[i];
+    
+    fx1[i] = fx[i]; // fx1 stores forces at f(t)
+    fy1[i] = fy[i]; // fy1 stores forces at f(t)
+    fz1[i] = fz[i]; // fz1 stores forces at f(t)
+  }
+
+  //fprintf(file, "%f \t %f \n", k*dt, T);  
+  
+  force();          // fx, fy and fz stores forces for f(t+1)
+  
+  // MOVE_V
+  for(int i = 0; i < N; i++){
+    vx[i] += halfdt*(fx1[i] + fx[i]); //updated velocities
+    vy[i] += halfdt*(fy1[i] + fy[i]);
+    vz[i] += halfdt*(fz1[i] + fz[i]);
+  }
+}
+
+void temperature()
+{
+  int v2 = 0.;
+  for(int i = 0; i < N; i++){
+    v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
+  }
+  T = 1./3.*v2/N;
+}
+
+// void diffusion_coefficient(rms)
+// {
+
+//   int r2, r20 = 0.;
+
+//   for(int i = 0; i < N; i++){
+//     r2  += x[i]*x[i]   + y[i]*y[i]   + z[i]*z[i];  
+//     r20 += xi[i]*xi[i] + yi[i]*yi[i] + zi[i]*zi[i];
+//   }
+//   rms = (r2 - r20)/N;  
+//   D = rms/(6.*NSTEP*dt);
+// }
