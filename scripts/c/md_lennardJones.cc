@@ -66,7 +66,7 @@ void force();
 void temperature();
 void diffusion_coefficient(double *, double *, double *);
 //void file_init(FILE *, char *, char *);
-void write(int *);
+void file_write(int *);
 void file_start();
 void file_end();
 
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
     //==========================//
     // Write data to file  @file//
     //==========================//
-    write(&k);
+    file_write(&k);
 
   //   // Calculate Temperature 
   //   temperature();
@@ -292,7 +292,19 @@ void diffusion_coefficient(double *D, double *rms, double *r20)
   *D   = *rms/(6.*NSTEP*dt); 
 }
 
-void write(int *k){
+
+void file_start(){
+  for(int fi=0; fi<9; fi++ )
+  {
+    fprintf(file[fi],"%s",headers[fi]);
+    for (int i = 0; i < N; i++){
+      fprintf(file[fi],  "Molecule %i\t", i); 
+    }
+    fprintf(file[fi],  "\n");
+  }
+}
+
+void file_write(int *k){
   double *data[] = {x,y,z,vx,vy,vz,fx,fy,fz};
   for(int fi=0; fi<9; fi++ )
   {
@@ -302,18 +314,6 @@ void write(int *k){
     }
     fprintf(file[fi],  "\n");
   }      
-}
-
-void file_start(){
-  for(int fi=0; fi<9; fi++ )
-  {
-    //file[fi] = fopen(dirs[fi],"w"); 
-    fprintf(file[fi],"%s",headers[fi]);
-    for (int i = 0; i < N; i++){
-      fprintf(file[fi],  "Molecule %i\t", i); 
-    }
-    fprintf(file[fi],  "\n");
-  }
 }
 
 void file_end(){
