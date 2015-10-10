@@ -30,7 +30,6 @@ double const rcut2    = rcut*rcut;
 double const halfdtdt = 0.5*dt*dt;
 double const halfdt   = 0.5*dt;
 
-
 //variables
 
 double x[N];
@@ -66,7 +65,10 @@ void move();
 void force();
 void temperature();
 void diffusion_coefficient(double *, double *, double *);
-
+//void file_init(FILE *, char *, char *);
+void write(int *);
+void file_start();
+void file_end();
 
 // main program
 
@@ -81,117 +83,55 @@ int main(int argc, char *argv[])
 
   // @test:@0011:using 1 as seed for testing for runtime    @todo: make the srand48 truely random later by using time(0) as the seed
   // srand48(time(0));  // seed for random initial particle velocities
-
   // @test:@0011: ^
   srand48(1);  // seed for random initial particle velocities
 
-
   printf("Initiating particle's coordinates and velocities...\n");
   
-  init();            // initialize 
+  //==================================================//
+  // Initiate particle positions & velocities & Forces//
+  //==================================================//
+  init(); 
 
+  //======================//
+  // Initiate output files// 
+  //======================//
+  for(int fi=0; fi<9; fi++ ){
+    file[fi] = fopen(dirs[fi],"w");   
+  }
+
+  file_start();
+  
+  //========================//
+  // Increment time (t + dt)//
+  //========================//
   printf("Simulating particle's dynamics...\n");
 
-  // open files and initiate headers  @file
-  for(int fi=0; fi<9; fi++ )
-  {
-    file[fi] = fopen(dirs[fi],"w"); 
-    fprintf(file[fi],"%s",headers[fi]);
-
-    for (int i = 0; i < N; i++){
-      fprintf(file[fi],  "Molecule %i\t", i); 
-    }
-    fprintf(file[fi],  "\n");
-  }
-    
-
-  // Initial force calculation
-  force();
-
-  // Increment time (t + dt)
-  for(int k = 0; k < NSTEP; k++){
+  for(int k=0; k<NSTEP; k++){
 
     if(k % 500 == 0){
       printf("\t %f percent\n",((float)k/NSTEP)*100.0);  
     }
-    
-    // Move particle positions & velocities
+    //=============================================//
+    // Move particle positions, velocities & forces//
+    //=============================================//
     move();
-    
-    // Write data to file[fi]  @file
-    double *data[] = {x,y,z,vx,vy,vz,fx,fy,fz};
 
-    for(int fi=0; fi<9; fi++ )
-    {
-      fprintf(file[fi], "%f\t", k*dt); // time 
-      for (int i = 0; i<N; i++){ // for each molecule
-        fprintf(file[fi],  "%f\t", data[fi][i]); 
-      }
-      fprintf(file[fi],  "\n");
-    }
-    
-    // fprintf(file[1], "%f\t", x[i]); 
-    // fprintf(file[2], "%f\t", y[i]);
-    // fprintf(file[3], "%f\t", z[i]);
-    // fprintf(file[4], "%f\t", vx[i]);
-    // fprintf(file[5], "%f\t", vy[i]);
-    // fprintf(file[6], "%f\t", vz[i]);
-    // fprintf(file[7], "%f\t", fx[i]);
-    // fprintf(file[8], "%f\t", fy[i]);
-    // fprintf(file[9], "%f\t", fz[i]);
-
-  //   fprintf(file_x, "%f\t", k*dt);
-  //   fprintf(file_y, "%f\t", k*dt);
-  //   fprintf(file_z, "%f\t", k*dt);
-  //   fprintf(file_vx, "%f\t", k*dt);
-  //   fprintf(file_vy, "%f\t", k*dt);
-  //   fprintf(file_vz, "%f\t", k*dt);
-  //   fprintf(file_fx, "%f\t", k*dt);
-  //   fprintf(file_fy, "%f\t", k*dt);
-  //   fprintf(file_fz, "%f\t", k*dt);
-
-  //   for (int i = 0; i < N; i++){
-  //     fprintf(file_x,  "%f\t", x[i]); 
-  //     fprintf(file_y,  "%f\t", y[i]);
-  //     fprintf(file_z,  "%f\t", z[i]);
-  //     fprintf(file_vx, "%f\t", vx[i]);
-  //     fprintf(file_vy, "%f\t", vy[i]);
-  //     fprintf(file_vz, "%f\t", vz[i]);
-  //     fprintf(file_fx, "%f\t", fx[i]);
-  //     fprintf(file_fy, "%f\t", fy[i]);
-  //     fprintf(file_fz, "%f\t", fz[i]);
-  //   }
-  //   fprintf(file_x, "\n");
-  //   fprintf(file_y, "\n");
-  //   fprintf(file_z, "\n");
-  //   fprintf(file_vx, "\n");
-  //   fprintf(file_vy, "\n");
-  //   fprintf(file_vz, "\n");
-  //   fprintf(file_fx, "\n");
-  //   fprintf(file_fy, "\n");
-  //   fprintf(file_fz, "\n");
+    //==========================//
+    // Write data to file  @file//
+    //==========================//
+    write(&k);
 
   //   // Calculate Temperature 
   //   temperature();
 
   //   fprintf(file_T, "%f \t %f \n", k*dt, T);
   }
-
-  // fclose(file_x);
-  // fclose(file_y);
-  // fclose(file_z);
-  // fclose(file_vx);
-  // fclose(file_vy);
-  // fclose(file_vz);
-  // fclose(file_fx);
-  // fclose(file_fy);
-  // fclose(file_fz);
-  // fclose(file_T);
   
+
   // close files  @file
-  for(int fi=0; fi<9; fi++ ){
-    fclose(file[fi]);
-  }
+  void file_end();
+
 
   diffusion_coefficient( &D, &rms, &r20 );
 
@@ -263,6 +203,10 @@ void init() //initialisation
     zi[i] = z[i];
    //printf("%d \t %f \t %f \t %f \n", i, x[i], y[i], z[i]);
   }
+
+  /* Force initialization */
+  force();
+
 }
 
 void force() //total force
@@ -346,5 +290,34 @@ void diffusion_coefficient(double *D, double *rms, double *r20)
   }
   *rms = (r2 - *r20)/N;  
   *D   = *rms/(6.*NSTEP*dt); 
+}
 
+void write(int *k){
+  double *data[] = {x,y,z,vx,vy,vz,fx,fy,fz};
+  for(int fi=0; fi<9; fi++ )
+  {
+    fprintf(file[fi], "%f\t", *k*dt); // time 
+    for (int i = 0; i<N; i++){ // for each molecule
+      fprintf(file[fi],  "%f\t", data[fi][i]); 
+    }
+    fprintf(file[fi],  "\n");
+  }      
+}
+
+void file_start(){
+  for(int fi=0; fi<9; fi++ )
+  {
+    //file[fi] = fopen(dirs[fi],"w"); 
+    fprintf(file[fi],"%s",headers[fi]);
+    for (int i = 0; i < N; i++){
+      fprintf(file[fi],  "Molecule %i\t", i); 
+    }
+    fprintf(file[fi],  "\n");
+  }
+}
+
+void file_end(){
+  for(int fi=0; fi<9; fi++ ){
+    fclose(file[fi]);
+  }  
 }
