@@ -45,9 +45,9 @@ double D; //diffusion constant
 
 // file output
 
-FILE *file[9];
-const char *dirs[]    ={"../../data/x.dat" , "../../data/y.dat","../../data/z.dat" ,"../../data/vx.dat","../../data/vy.dat","../../data/vz.dat","../../data/fx.dat","../../data/fy.dat","../../data/fz.dat", "../../data/T.dat" };
-const char *headers[] ={"#X(t) Coordinates\n#Time (t)\t","#Y(t) Coordinates\n#Time (t)\t","#Z(t) Coordinates\n#Time (t)\t","#X(t) Velocities\n#Time (t)\t","#Y(t) Velocities\n#Time (t)\t","#Z(t) Velocities\n#Time (t)\t","#X(t) Forces\n#Time (t)\t","#Y(t) Forces\n#Time (t)\t","#Z(t) Forces\n#Time (t)\t", "#Temperature (t)\n#Time(t)\t"};
+FILE *file[11];
+const char *dirs[]    ={"../../data/x.dat" , "../../data/y.dat","../../data/z.dat" ,"../../data/vx.dat","../../data/vy.dat","../../data/vz.dat","../../data/fx.dat","../../data/fy.dat","../../data/fz.dat", "../../data/T.dat", "../../data/D.dat" };
+const char *headers[] ={"#X(t) Coordinates\n#Time (t)\t","#Y(t) Coordinates\n#Time (t)\t","#Z(t) Coordinates\n#Time (t)\t","#X(t) Velocities\n#Time (t)\t","#Y(t) Velocities\n#Time (t)\t","#Z(t) Velocities\n#Time (t)\t","#X(t) Forces\n#Time (t)\t","#Y(t) Forces\n#Time (t)\t","#Z(t) Forces\n#Time (t)\t", "#Temperature (t)\n#Time(t)\t", "#Diffusion coefficient (t)\n#Time(t)\t"};
 
 //functions
 
@@ -55,8 +55,8 @@ void init();
 void move();
 void force();
 void temperature(double *);
-void diffusion_coefficient(double *, double *, double *);
-void file_write(int *, double *);
+void diffusion_coefficient(double *, double *, double *, int *);
+void file_write(int *, double *, double *);
 void file_start();
 void file_end();
 
@@ -65,22 +65,19 @@ void file_end();
 int main(int argc, char *argv[])
 {
   
-  double v2, rms, D, time_spent, r20, T;  // double r2, v2, r20, rms, time_spent;
+  double v2, rms, D=0, time_spent, r20, T;  // double r2, v2, r20, rms, time_spent;
   int k=0;
 
   // Code timing:start
   clock_t begin, end;
   begin = clock();
 
-  // @test:@0011:using 1 as seed for testing for runtime    @todo: make the srand48 truely random later by using time(0) as the seed
-  // srand48(time(0));  // seed for random initial particle velocities
-  // @test:@0011: ^
-  srand48(1);  // seed for random initial particle velocities
+  srand48(time(0));  // time-based seed for random initial particle velocities
 
   //=======================//
   // Initiate output files // 
   //=======================//
-  for(int fi=0; fi<10; fi++ ){
+  for(int fi=0; fi<11; fi++ ){
     file[fi] = fopen(dirs[fi],"w");   
   }
   file_start();
@@ -94,7 +91,7 @@ int main(int argc, char *argv[])
   //====================//
   // Write data to file //
   //====================//
-  file_write(&k, &T);
+  file_write(&k, &T, &D);
   
   //=========================//
   // Increment time (t + dt) //
@@ -117,25 +114,23 @@ int main(int argc, char *argv[])
     //=============//
     temperature(&T);
 
-    // Temperatures calculated over all molecules
-    // double v2 = 0.;
-    // for(int i=0; i<N; i++){
-    //   v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
-    // }
-    // T = 1./3.*v2/N;
+    //=============//
+    // diffusion c //
+    //=============//
+    diffusion_coefficient( &D, &rms, &r20, &k );
 
     //====================//
     // Write data to file //
     //====================//
-    file_write(&k, &T);
+    file_write(&k, &T, &D);
 
   }
-  
-
-  // close files
+  //=============//
+  // Close files //
+  //=============//
   void file_end();
 
-  diffusion_coefficient( &D, &rms, &r20 );
+  k=NSTEP;
 
   printf("Temperature: T = %f \t r2 = %f \t rms = %f \t Diffusion: D =  %f \n", T, r20/N, sqrt(rms), D);
 
@@ -152,92 +147,77 @@ int main(int argc, char *argv[])
 
 void init() //initialisation
 {
-
- /*Position initialisation*/
-
+ /* (i) Position initialisation*/
  int l;
-
  for(int i = 0; i < Lx; i++){
     for(int j = 0; j < Lx; j++){
-      for(int k = 0; k < Lx; k++){
-        l = (i*Lx*Lx + j*Lx + k);
+      for(int m = 0; m < Lx; m++){
+        l = (i*Lx*Lx + j*Lx + m);
         x[l] = i*dx;
         y[l] = j*dx;
-        z[l] = k*dx;
+        z[l] = m*dx;
       }
     }  
   }
-
- /*Velocity initialisation*/
- 
+ /* (ii) Velocity initialisation*/
  double vxcm, vycm, vzcm = 0.;
-
  for(int i = 0; i < N; i++){
-
     vx[i] = vmax*(2.*drand48()-1.);
     vy[i] = vmax*(2.*drand48()-1.);
     vz[i] = vmax*(2.*drand48()-1.);
-
     vxcm += vx[i]; // summing velocities (for subtracting center of mass V)
     vycm += vy[i];
     vzcm += vz[i];
-
   }
-
- /*Subtract center of mass velocities*/
-
+ /* (iii) Subtract center of mass velocities*/
  vxcm /= N; // averaging velocities (for subtracting center of mass V)
  vycm /= N;
  vzcm /= N;
-
  for(int i = 0; i < N; i++){
     vx[i] -= vxcm;
     vy[i] -= vycm;
     vz[i] -= vzcm;
   }
-
-  printf("\t %f \t %f \t %f \n", vxcm/vmax, vycm/vmax, vzcm/vmax);
- 
-  /* */ 
+  /* (iv) Store initial positions */ 
   for(int i = 0; i < N; i++){ //initial positions
     xi[i] = x[i];
     yi[i] = y[i];
     zi[i] = z[i];
-   //printf("%d \t %f \t %f \t %f \n", i, x[i], y[i], z[i]);
   }
-
-  /* Force initialization */
+  /* (v) Force initialization */
   force();
-
-  /* Temperature initialization */
+  /* (vi) Temperature initialization */
   temperature(&T);
-
 }
 
 void force() //total force
 { 
   double r2, xmin, ymin, zmin, diff, f;
-  
+    
   for(int i = 0; i<N; i++){
     fx[i] = 0;
     fy[i] = 0;
     fz[i] = 0;
   }
-  
+
+  // Pairwise forces, particles i vs. j 
   for(int i = 0; i<N; i++){
     for(int j = i+1; j<N; j++){
 
+      // Periodic Boundary Conditions
       xmin = ((x[i]-x[j]) - L*round((x[i]-x[j])/L));
       ymin = ((y[i]-y[j]) - L*round((y[i]-y[j])/L));
       zmin = ((z[i]-z[j]) - L*round((z[i]-z[j])/L));
 
+      // Sq. distance, i vs j
       r2 = xmin*xmin + ymin*ymin + zmin*zmin;
       
+      // Ignore i,j particles's forces > rcut2 distance
       if(r2 < rcut2){
 
         f = (48./(pow(r2,7)) - 24./(pow(r2,4))); //LJ-potential
 
-        fx[i] += f*xmin; // @ask:mugdha @mugdha:ask: if the functions cannot affect the outer-environment then how can these fx[i]s be affected
+        fx[i] += f*xmin;
         fy[i] += f*ymin;
         fz[i] += f*zmin;
         fx[j] -= f*xmin;
@@ -250,22 +230,22 @@ void force() //total force
 
 void move() //one time step move dt
 { 
-  // Molecules' positions (x,y,z), then velocities (vx,vy,vz) are moved according to forces
+  // Molecules' positions (x,y,z), then velocities (vx,vy,vz) are changed according to forces
 
-  // MOVE_R: change molecules' positions according to forces 
+  // MOVE_R: update particle positions
   for(int i = 0; i < N; i++){
     x[i] += dt*vx[i] + halfdtdt*fx[i]; //updated positions
     y[i] += dt*vy[i] + halfdtdt*fy[i];
     z[i] += dt*vz[i] + halfdtdt*fz[i];
     
-    fx0[i] = fx[i]; // fx0 stores forces at f(t)
-    fy0[i] = fy[i]; // fy0 stores forces at f(t)
-    fz0[i] = fz[i]; // fz0 stores forces at f(t)
+    fx0[i] = fx[i]; // fx0, fy0, fz0 store forces at f(t)
+    fy0[i] = fy[i];
+    fz0[i] = fz[i];
   }
   
-  force();          // fx, fy and fz stores forces for f(t+1)
+  force(); // fx, fy and fz stores forces for f(t+1)
   
-  // MOVE_V: change molecules' velocities according to forces
+  // MOVE_V: update particle velocities
   for(int i = 0; i < N; i++){
     vx[i] += halfdt*(fx0[i] + fx[i]); //updated velocities
     vy[i] += halfdt*(fy0[i] + fy[i]);
@@ -278,12 +258,12 @@ void temperature(double *T)
   // Temperatures calculated over all molecules
   double v2 = 0.;
   for(int i=0; i<N; i++){
-    v2 += vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i];
+    v2 += (vx[i]*vx[i]) + (vy[i]*vy[i]) + (vz[i]*vz[i]);
   }
-  *T = 1./3.*v2/N;
+  *T = v2/(3*N);
 }
 
-void diffusion_coefficient(double *D, double *rms, double *r20)
+void diffusion_coefficient(double *D, double *rms, double *r20, int *k)
 {
   // Diffusion coefficients calculated over all molecules
   double r2 = 0;
@@ -294,13 +274,13 @@ void diffusion_coefficient(double *D, double *rms, double *r20)
     *r20 += xi[i]*xi[i] + yi[i]*yi[i] + zi[i]*zi[i];
   }
   *rms = (r2 - *r20)/N;  
-  *D   = *rms/(6.*NSTEP*dt); 
+  *D   = *rms/(6.*(*k)*dt); 
 }
 
 
 void file_start(){
 
-  // Open files for writing rows of data to files, each i-th element is a different molecule
+  // Files to store datarows (t), 1 particle per ith column
   for(int fi=0; fi<9; fi++ )
   {
     fprintf(file[fi],"%s",headers[fi]);
@@ -310,14 +290,18 @@ void file_start(){
     fprintf(file[fi],  "\n");
   }
 
-  // temperature  @todo: add extra element to dirs and headers
+  // temperature
   int fi = 9;
+  fprintf(file[fi], "%s\n", headers[fi]); // time
+
+  // diffusion coefficient
+  fi = 10;
   fprintf(file[fi], "%s\n", headers[fi]); // time
 }
 
-void file_write(int *k, double *T){
+void file_write(int *k, double *T, double *D){
 
-  // write rows of data to files, each i-th element is a different molecule
+  // Writing datarows (t), 1 particle per ith column
   double *data[] = {x,y,z,vx,vy,vz,fx,fy,fz};
   for(int fi=0; fi<9; fi++ )
   {
@@ -328,18 +312,17 @@ void file_write(int *k, double *T){
     fprintf(file[fi],  "\n");
   }
 
-  // temperature  @todo: add extra element to dirs and headers
+  // temperature
   int fi = 9;
   fprintf(file[fi], "%f\t%f\n", *k*dt,*T); // time
-  // @todo: diffusion coefficient
-  // int fi = 10;
-  // fprintf(file[fi], "%f\t%f\n", *k*dt,*D); // time
+  // diffusion coefficient
+  fi = 10;
+  fprintf(file[fi], "%f\t%f\n", *k*dt,*D); // time
 }
-
 
 void file_end(){
   // close output files 
-  for(int fi=0; fi<10; fi++ ){
+  for(int fi=0; fi<11; fi++ ){
     fclose(file[fi]);
   }  
 }
