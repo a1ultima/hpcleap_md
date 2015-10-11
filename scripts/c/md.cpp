@@ -193,11 +193,11 @@ void lennard_jones_force() //total force
   int i, j;
   double r6, r12;
 
-  // # pragma omp parallel \
-  // shared ( fx,fy,fz, x,y,z, vx,vy,vz ) \
-  // private ( i, j, xmin,ymin,zmin, r2, r6, r12, f )
+  # pragma omp parallel \
+  shared ( fx,fy,fz, x,y,z, vx,vy,vz ) \
+  private ( i, j, xmin,ymin,zmin, r2, r6, r12, f )
 
-  // # pragma omp for
+  # pragma omp for
   // Pairwise forces, particles i vs. j 
   for(int i = 0; i<N; i++){
     for(int j = i+1; j<N; j++){
