@@ -12,8 +12,8 @@ using namespace std;
 #define L 50 //lattice length
 #define dx 10 //lattice spacing
 #define Lx (L/dx) //renormalised length
-#define N 125 // (Lx*Lx*Lx) //total number of particles
-#define NSTEP 10000 //total number of time steps
+#define N (Lx*Lx*Lx) // 125 particles (Lx*Lx*Lx) //total number of particles
+#define NSTEP 100000 //total number of time steps
 
 //constants
 
@@ -43,6 +43,8 @@ double yi[N];
 double zi[N];
 double T; //reduced temperature
 double D; //diffusion constant
+int i, j;
+double r6, r12;
 
 // file output
 
@@ -67,8 +69,6 @@ int main(int argc, char *argv[])
 {
 
   double v2, rms, time_spent, r20, T, D=0; int k=0; // double r2, v2, r20, rms, time_spent;
-
-  clock_t begin, end; begin=clock(); // Runtime
 
   //srand48(time(0));  // time-based seed for random initial particle velocities
   srand48(0);  // time-based seed for random initial particle velocities
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 
   srand48(time(0));  // time-based seed for random initial particle velocities
 
-  printf("Temperature: %f\tr2=%f\trms=%f\tDiffusion: %f\tRuntime: %f\n", T, r20/N, sqrt(rms), D);
+  printf("Temperature: %f\tr2=%f\trms=%f\tDiffusion: %f\n", T, r20/N, sqrt(rms), D);
 
   return 0;
 }
@@ -190,14 +190,11 @@ void lennard_jones_force() //total force
     fz[i] = 0;
   }
 
-  int i, j;
-  double r6, r12;
+  // # pragma omp parallel \
+  // shared ( fx,fy,fz, x,y,z, vx,vy,vz ) \
+  // private ( i, j, xmin,ymin,zmin, r2, r6, r12, f )
 
-  # pragma omp parallel \
-  shared ( fx,fy,fz, x,y,z, vx,vy,vz ) \
-  private ( i, j, xmin,ymin,zmin, r2, r6, r12, f )
-
-  # pragma omp for
+  // # pragma omp for
   // Pairwise forces, particles i vs. j 
   for(int i = 0; i<N; i++){
     for(int j = i+1; j<N; j++){
@@ -212,11 +209,9 @@ void lennard_jones_force() //total force
 
       // Ignore i,j particles's forces > rcut2 distance
       if(r2 < rcut2){
-
-        r6  = r2*r2*r2;
-        r12 = r6*r6;
-
-        f = (48./(r12*r2) - 24./(r6*r2)); //LJ-potential
+        // r6  = r2*r2*r2;
+        // r12 = r6*r6;
+        f = (48./pow(r2,8) - 24./pow(r2,4)); //LJ-potential
 
         fx[i] += f*xmin;
         fy[i] += f*ymin;
